@@ -87,12 +87,12 @@ app.post('/api/chat', rateLimit, validateInput, async (req, res) => {
     toolList.forEach(t => args.push('--allowedTools', t.trim()));
   }
 
-  // Project folder access without changing CWD
-  if (projectFolder) {
-    args.push('--add-dir', projectFolder);
-  }
+  // Include project folder path in the prompt so Claude can use absolute paths
+  const projectContext = projectFolder
+    ? `\n\nProject directory: ${projectFolder.replace(/\\/g, '/')} — use absolute paths when reading or writing files.`
+    : '';
 
-  args.push('--', fullPrompt);
+  args.push('--', fullPrompt + projectContext);
 
   console.log(`[chat] Request (model: ${model || 'auto'}, session: ${existingSession ? 'continue' : 'new'}, tools: ${enableTools ? 'yes' : 'no'})`);
   console.log(`[chat] Prompt: ${lastMessage.substring(0, 80)}`);
@@ -122,6 +122,7 @@ app.post('/api/chat', rateLimit, validateInput, async (req, res) => {
       inputTokens: parsed.usage?.input_tokens || 0,
       outputTokens: parsed.usage?.output_tokens || 0,
       cacheReadTokens: parsed.usage?.cache_read_input_tokens || 0,
+      durationMs: parsed.duration_ms || 0,
       totalCost: parsed.total_cost_usd || 0,
       numTurns: parsed.num_turns || 1,
     };
