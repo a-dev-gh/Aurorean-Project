@@ -126,6 +126,44 @@ app.post('/api/chat', rateLimit, validateInput, async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════
+// GEMINI — Proxy to avoid API key exposure in browser
+// ═══════════════════════════════════════════════════
+
+app.post('/api/gemini', rateLimit, validateInput, async (req, res) => {
+  const { systemPrompt, messages, model, apiKey } = req.body;
+
+  if (!apiKey) return res.status(400).json({ error: 'Gemini API key required' });
+  if (!messages) return res.status(400).json({ error: 'messages required' });
+
+  const modelId = model && model !== 'auto' ? model : 'gemini-2.0-flash';
+
+  try {
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
+          contents: messages,
+        }),
+      }
+    );
+
+    if (!geminiRes.ok) {
+      const err = await geminiRes.text();
+      return res.status(geminiRes.status).json({ error: `Gemini: ${err.substring(0, 200)}` });
+    }
+
+    const data = await geminiRes.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
+    res.json({ response: text });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════
 // FILES — Save/load chat logs and suggestions
 // ═══════════════════════════════════════════════════
 
@@ -240,15 +278,28 @@ app.post('/api/files/list-chats', async (req, res) => {
  * Loads a saved chat file
  */
 app.post('/api/files/load-chat', async (req, res) => {
-  const { filePath } = req.body;
+  const { filePath, projectFolder } = req.body;
 
   if (!filePath) {
     return res.status(400).json({ error: 'filePath required' });
   }
 
+  // Security: prevent path traversal — file must be within agentic-chat dir
+  const resolved = path.resolve(filePath);
+  if (projectFolder) {
+    const allowedBase = path.resolve(projectFolder, 'agentic-chat');
+    if (!resolved.startsWith(allowedBase)) {
+      return res.status(403).json({ error: 'Access denied: path outside project' });
+    }
+  }
+
   try {
-    const content = await fs.readFile(filePath, 'utf-8');
-    res.json(JSON.parse(content));
+    const content = await fs.readFile(resolved, 'utf-8');
+    try {
+      res.json(JSON.parse(content));
+    } catch {
+      res.status(400).json({ error: 'Invalid JSON file' });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

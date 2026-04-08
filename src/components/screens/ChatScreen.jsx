@@ -101,16 +101,23 @@ const ChatScreen = () => {
     try {
       const fixed = await fixGrammar(input, settings);
       setInput(fixed);
-    } catch {
-      // Silent fail
+      useStore.getState().addToast('Grammar fixed', 'success', 2000);
+    } catch (err) {
+      useStore.getState().addToast('Grammar fix failed — check AI settings', 'error');
     } finally {
       setFixing(false);
     }
   };
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files || []);
     files.forEach((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        useStore.getState().addToast(`File too large: ${file.name} (max 10MB)`, 'error');
+        return;
+      }
       const reader = new FileReader();
       reader.onload = () => {
         const isImage = file.type.startsWith('image/');

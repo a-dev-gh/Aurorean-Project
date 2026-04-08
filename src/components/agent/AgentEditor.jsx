@@ -33,17 +33,24 @@ const AgentEditor = ({ agentId, rosterId, onClose, isNew }) => {
   const setRule = (key, val) => setForm((f) => ({ ...f, rules: { ...f.rules, [key]: val } }));
 
   const handleSave = () => {
-    if (!form.name.trim()) return;
+    if (!form.name.trim()) {
+      useStore.getState().addToast('Agent name is required', 'error');
+      return;
+    }
     if (isNew) {
       addAgent(rosterId, form);
+      useStore.getState().addToast(`Agent "${form.name}" created`, 'success');
     } else {
       updateAgent(rosterId, agentId, form);
+      useStore.getState().addToast(`Agent "${form.name}" updated`, 'success');
     }
     onClose();
   };
 
   const handleDelete = () => {
+    if (!window.confirm(`Delete agent "${form.name}"? This cannot be undone.`)) return;
     deleteAgent(rosterId, agentId);
+    useStore.getState().addToast(`Agent "${form.name}" deleted`, 'info');
     onClose();
   };
 

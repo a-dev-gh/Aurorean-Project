@@ -53,24 +53,22 @@ async function callClaudeCLI(agent, messages, model, settings) {
 async function callGemini(agent, messages, model, apiKey) {
   if (!apiKey) throw new Error('Gemini API key not configured. Go to Settings to add it.');
 
-  const modelId = model === 'auto' ? 'gemini-2.0-flash' : model;
-
   const contents = messages.map((m) => ({
     role: m.role === 'user' ? 'user' : 'model',
     parts: [{ text: m.content }],
   }));
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: agent.systemPrompt }] },
-        contents,
-      }),
-    }
-  );
+  // Route through server proxy to keep API key off the browser network tab
+  const res = await fetch('/api/gemini', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemPrompt: agent.systemPrompt,
+      messages: contents,
+      model: model === 'auto' ? undefined : model,
+      apiKey,
+    }),
+  });
 
   if (!res.ok) {
     const err = await res.text();
@@ -78,7 +76,7 @@ async function callGemini(agent, messages, model, apiKey) {
   }
 
   const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
+  return data.response;
 }
 
 /**

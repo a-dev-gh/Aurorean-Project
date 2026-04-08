@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { loadState, saveState } from '../utils/storage';
 import { defaultRoster } from '../data/defaultRoster';
 
+let initialized = false;
+
 const useStore = create((set, get) => ({
   // ── ROSTERS ──
   rosters: [],
@@ -47,6 +49,8 @@ const useStore = create((set, get) => ({
   // ═══════════════════════════════════════════
 
   initialize: () => {
+    if (initialized) return;
+    initialized = true;
     const saved = loadState();
     if (saved) {
       set({
