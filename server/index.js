@@ -1,0 +1,233 @@
+import express from 'express';
+import cors from 'cors';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+import fs from 'fs/promises';
+import path from 'path';
+
+const execFileAsync = promisify(execFile);
+const app = express();
+const PORT = 3001;
+
+// Claude CLI — hardcoded path
+const CLAUDE_PATH = 'C:/Users/elchi/AppData/Roaming/Claude/claude-code/2.1.87/claude.exe';
+console.log(`  Claude CLI: ${CLAUDE_PATH}`);
+
+app.use(cors());
+app.use(express.json({ limit: '5mb' }));
+
+// ═══════════════════════════════════════════════════
+// CHAT — Send message to Claude agent
+// ═══════════════════════════════════════════════════
+
+app.post('/api/chat', async (req, res) => {
+  const { systemPrompt, messages, model } = req.body;
+
+  if (!messages) {
+    return res.status(400).json({ error: 'messages is required' });
+  }
+
+  try {
+    const args = ['--print'];
+    if (systemPrompt) args.push('--system-prompt', systemPrompt);
+    if (model && model !== 'auto') args.push('--model', model);
+    args.push(messages);
+
+    console.log(`[chat] Agent request (model: ${model || 'auto'}, prompt length: ${messages.length})`);
+
+    const { stdout, stderr } = await execFileAsync(CLAUDE_PATH, args, {
+      timeout: 120000,
+      maxBuffer: 1024 * 1024,
+      windowsHide: true,
+    });
+
+    if (stderr) console.warn('[chat] stderr:', stderr);
+
+    const response = stdout.trim();
+    console.log(`[chat] Response received (${response.length} chars)`);
+    res.json({ response });
+  } catch (err) {
+    console.error('[chat] Error:', err.message);
+
+    if (err.code === 'ENOENT') {
+      return res.status(500).json({
+        error: `Claude CLI not found at: ${CLAUDE_PATH}`,
+      });
+    }
+    if (err.killed || err.signal === 'SIGTERM') {
+      return res.status(504).json({ error: 'Request timed out.' });
+    }
+    res.status(500).json({ error: err.message || 'Unknown error' });
+  }
+});
+
+// ═══════════════════════════════════════════════════
+// FILES — Save/load chat logs and suggestions
+// ═══════════════════════════════════════════════════
+
+/**
+ * POST /api/files/save-chat
+ * Body: { projectFolder, agentName, rosterId, conversation }
+ *
+ * Saves to: {projectFolder}/agentic-chat/chat-logs/{roster}/{agent}-{timestamp}.json
+ */
+app.post('/api/files/save-chat', async (req, res) => {
+  const { projectFolder, agentName, rosterName, conversation } = req.body;
+
+  if (!projectFolder || !conversation) {
+    return res.status(400).json({ error: 'projectFolder and conversation required' });
+  }
+
+  try {
+    const safeName = (agentName || 'unknown').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+    const safeRoster = (rosterName || 'default').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const dir = path.join(projectFolder, 'agentic-chat', 'chat-logs', safeRoster);
+
+    await fs.mkdir(dir, { recursive: true });
+
+    const filePath = path.join(dir, `${safeName}-${timestamp}.json`);
+    await fs.writeFile(filePath, JSON.stringify({
+      agent: agentName,
+      roster: rosterName,
+      savedAt: new Date().toISOString(),
+      messages: conversation,
+    }, null, 2));
+
+    console.log(`[files] Chat saved: ${filePath}`);
+    res.json({ path: filePath });
+  } catch (err) {
+    console.error('[files] Save error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/files/save-suggestion
+ * Body: { projectFolder, agentName, title, content }
+ *
+ * Saves to: {projectFolder}/agentic-chat/suggestions/{agent}-{title}.md
+ */
+app.post('/api/files/save-suggestion', async (req, res) => {
+  const { projectFolder, agentName, title, content } = req.body;
+
+  if (!projectFolder || !content) {
+    return res.status(400).json({ error: 'projectFolder and content required' });
+  }
+
+  try {
+    const safeName = (agentName || 'agent').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+    const safeTitle = (title || 'suggestion').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+    const dir = path.join(projectFolder, 'agentic-chat', 'suggestions');
+
+    await fs.mkdir(dir, { recursive: true });
+
+    const filePath = path.join(dir, `${safeName}-${safeTitle}.md`);
+    await fs.writeFile(filePath, content);
+
+    console.log(`[files] Suggestion saved: ${filePath}`);
+    res.json({ path: filePath });
+  } catch (err) {
+    console.error('[files] Save error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/files/list-chats
+ * Body: { projectFolder, rosterName }
+ *
+ * Lists saved chat files from {projectFolder}/agentic-chat/chat-logs/{roster}/
+ */
+app.post('/api/files/list-chats', async (req, res) => {
+  const { projectFolder, rosterName } = req.body;
+
+  if (!projectFolder) {
+    return res.status(400).json({ error: 'projectFolder required' });
+  }
+
+  try {
+    const safeRoster = (rosterName || 'default').replace(/[^a-zA-Z0-9-_]/g, '-').toLowerCase();
+    const dir = path.join(projectFolder, 'agentic-chat', 'chat-logs', safeRoster);
+
+    let files = [];
+    try {
+      const entries = await fs.readdir(dir);
+      files = entries
+        .filter((f) => f.endsWith('.json'))
+        .map((f) => ({
+          name: f,
+          path: path.join(dir, f),
+        }));
+    } catch {
+      // Directory doesn't exist yet — return empty
+    }
+
+    res.json({ files });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/files/load-chat
+ * Body: { filePath }
+ *
+ * Loads a saved chat file
+ */
+app.post('/api/files/load-chat', async (req, res) => {
+  const { filePath } = req.body;
+
+  if (!filePath) {
+    return res.status(400).json({ error: 'filePath required' });
+  }
+
+  try {
+    const content = await fs.readFile(filePath, 'utf-8');
+    res.json(JSON.parse(content));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/files/init-project
+ * Body: { projectFolder }
+ *
+ * Creates the agentic-chat folder structure in a project
+ */
+app.post('/api/files/init-project', async (req, res) => {
+  const { projectFolder } = req.body;
+
+  if (!projectFolder) {
+    return res.status(400).json({ error: 'projectFolder required' });
+  }
+
+  try {
+    const base = path.join(projectFolder, 'agentic-chat');
+    await fs.mkdir(path.join(base, 'chat-logs'), { recursive: true });
+    await fs.mkdir(path.join(base, 'suggestions'), { recursive: true });
+    await fs.mkdir(path.join(base, 'docs'), { recursive: true });
+
+    console.log(`[files] Project initialized: ${base}`);
+    res.json({ path: base, folders: ['chat-logs', 'suggestions', 'docs'] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.listen(PORT, () => {
+  console.log(`\n  Agentic Chat API server running on http://localhost:${PORT}`);
+  console.log(`  Endpoints:`);
+  console.log(`    POST /api/chat             — Send message to Claude agent`);
+  console.log(`    POST /api/files/save-chat   — Save conversation to project`);
+  console.log(`    POST /api/files/list-chats  — List saved chats`);
+  console.log(`    POST /api/files/load-chat   — Load a saved chat`);
+  console.log(`    POST /api/files/init-project — Create project folders`);
+  console.log(`    GET  /api/health            — Health check\n`);
+});

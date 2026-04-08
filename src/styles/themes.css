@@ -1,0 +1,84 @@
+/* ── Theme Variables — Alexander.ad Design System ── */
+
+[data-theme="dark"] {
+  --bg-primary: #05060a;
+  --bg-secondary: #0a0b10;
+  --bg-tertiary: #0f1016;
+  --bg-hover: rgba(255, 255, 255, 0.04);
+  --bg-active: rgba(255, 255, 255, 0.07);
+
+  --text-primary: #f4f5f8;
+  --text-secondary: rgba(244, 245, 248, 0.5);
+  --text-muted: rgba(244, 245, 248, 0.25);
+
+  --border: rgba(255, 255, 255, 0.07);
+  --border-light: rgba(255, 255, 255, 0.04);
+
+  /* Cyan + Pink — the alexander.ad signature */
+  --accent: #22d3ee;
+  --accent-hover: #06b6d4;
+  --accent-soft: rgba(34, 211, 238, 0.1);
+  --accent-secondary: #e879f9;
+  --accent-secondary-soft: rgba(232, 121, 249, 0.1);
+  --gradient: linear-gradient(135deg, #22d3ee, #e879f9);
+  --gradient-full: linear-gradient(135deg, #22d3ee, #e879f9, #22d3ee);
+
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info: #60a5fa;
+
+  --shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.4);
+  --glow-cyan: 0 0 20px rgba(34, 211, 238, 0.15);
+  --glow-pink: 0 0 20px rgba(232, 121, 249, 0.15);
+
+  --chat-user: rgba(34, 211, 238, 0.08);
+  --chat-agent: rgba(255, 255, 255, 0.02);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 100px;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f8f9fc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f0f1f5;
+  --bg-hover: rgba(0, 0, 0, 0.03);
+  --bg-active: rgba(0, 0, 0, 0.06);
+
+  --text-primary: #0a0b10;
+  --text-secondary: rgba(10, 11, 16, 0.55);
+  --text-muted: rgba(10, 11, 16, 0.3);
+
+  --border: rgba(0, 0, 0, 0.08);
+  --border-light: rgba(0, 0, 0, 0.04);
+
+  --accent: #0891b2;
+  --accent-hover: #0e7490;
+  --accent-soft: rgba(8, 145, 178, 0.08);
+  --accent-secondary: #c026d3;
+  --accent-secondary-soft: rgba(192, 38, 211, 0.08);
+  --gradient: linear-gradient(135deg, #0891b2, #c026d3);
+  --gradient-full: linear-gradient(135deg, #0891b2, #c026d3, #0891b2);
+
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #2563eb;
+
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --glow-cyan: 0 0 20px rgba(8, 145, 178, 0.1);
+  --glow-pink: 0 0 20px rgba(192, 38, 211, 0.1);
+
+  --chat-user: rgba(8, 145, 178, 0.06);
+  --chat-agent: #ffffff;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 100px;
+}
