@@ -20,7 +20,7 @@ function getMockResponse(agent, messages) {
   return `*${agent.name} responding*\n\n${base}`;
 }
 
-async function callClaudeCLI(agent, messages, model) {
+async function callClaudeCLI(agent, messages, model, settings) {
   // Build conversation context
   const history = messages
     .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
@@ -30,6 +30,7 @@ async function callClaudeCLI(agent, messages, model) {
     systemPrompt: agent.systemPrompt,
     messages: history,
     model: model === 'auto' ? agent.model : model,
+    projectFolder: settings.projectFolder || undefined,
   };
 
   const res = await fetch('/api/chat', {
@@ -91,7 +92,7 @@ export async function sendMessage({ agent, messages, settings }) {
 
   switch (aiProvider) {
     case 'claude-cli':
-      return callClaudeCLI(agent, messages, aiModel);
+      return callClaudeCLI(agent, messages, aiModel, settings);
 
     case 'gemini':
       return callGemini(agent, messages, aiModel, apiKeys?.gemini);

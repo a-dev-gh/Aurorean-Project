@@ -9,10 +9,10 @@ const PORT = 3001;
 // Claude CLI path — use forward slashes to avoid Windows backslash escaping pitfalls
 const CLAUDE_PATH = path.resolve('C:/Users/elchi/AppData/Roaming/Claude/claude-code/2.1.87/claude.exe');
 
-// The CWD for spawned CLI processes. Using the CLI's own directory avoids
-// Windows ENOENT errors that occur when the inherited CWD contains special
-// characters (spaces, dashes) that trip up CreateProcessW.
-const CLAUDE_CWD = path.dirname(CLAUDE_PATH);
+// CWD for spawned CLI processes. Use the user's home dir (clean path, no special chars)
+// so Claude can access project files. The ENOENT fix is about avoiding the project
+// folder's special characters in the CWD, not restricting access.
+const CLAUDE_CWD = process.env.USERPROFILE || path.dirname(CLAUDE_PATH);
 
 // Verify the CLI is reachable at startup
 try {
@@ -33,7 +33,7 @@ app.use(express.json({ limit: '5mb' }));
 // ═══════════════════════════════════════════════════
 
 app.post('/api/chat', async (req, res) => {
-  const { systemPrompt, messages, model } = req.body;
+  const { systemPrompt, messages, model, projectFolder } = req.body;
 
   if (!messages) {
     return res.status(400).json({ error: 'messages is required' });
@@ -47,6 +47,9 @@ app.post('/api/chat', async (req, res) => {
     ? `You are: ${systemPrompt.replace(/\n/g, ' ')}\n\nUser message: ${lastMessage}`
     : lastMessage;
 
+  // Use project folder as CWD if provided (so Claude can see project files)
+  const cwd = projectFolder || CLAUDE_CWD;
+
   const args = ['--print'];
   if (model && model !== 'auto') args.push('--model', model);
   args.push(fullPrompt);
@@ -59,7 +62,7 @@ app.post('/api/chat', async (req, res) => {
       maxBuffer: 1024 * 1024,
       windowsHide: true,
       encoding: 'utf-8',
-      cwd: CLAUDE_CWD,
+      cwd,
     }).trim();
 
     console.log(`[chat] Response received (${response.length} chars)`);
