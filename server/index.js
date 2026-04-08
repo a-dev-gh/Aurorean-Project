@@ -1,17 +1,29 @@
 import express from 'express';
 import cors from 'cors';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
+import { execFileSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
-
-const execFileAsync = promisify(execFile);
 const app = express();
 const PORT = 3001;
 
-// Claude CLI — hardcoded path
-const CLAUDE_PATH = 'C:/Users/elchi/AppData/Roaming/Claude/claude-code/2.1.87/claude.exe';
-console.log(`  Claude CLI: ${CLAUDE_PATH}`);
+// Claude CLI path — use forward slashes to avoid Windows backslash escaping pitfalls
+const CLAUDE_PATH = path.resolve('C:/Users/elchi/AppData/Roaming/Claude/claude-code/2.1.87/claude.exe');
+
+// The CWD for spawned CLI processes. Using the CLI's own directory avoids
+// Windows ENOENT errors that occur when the inherited CWD contains special
+// characters (spaces, dashes) that trip up CreateProcessW.
+const CLAUDE_CWD = path.dirname(CLAUDE_PATH);
+
+// Verify the CLI is reachable at startup
+try {
+  const ver = execFileSync(CLAUDE_PATH, ['--version'], {
+    encoding: 'utf-8', timeout: 10000, windowsHide: true, cwd: CLAUDE_CWD,
+  }).trim();
+  console.log(`  Claude CLI: ${CLAUDE_PATH} (${ver})`);
+} catch (err) {
+  console.error(`  WARNING: Claude CLI not reachable at ${CLAUDE_PATH}`);
+  console.error(`  ${err.code}: ${err.message?.substring(0, 200)}`);
+}
 
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
@@ -27,37 +39,34 @@ app.post('/api/chat', async (req, res) => {
     return res.status(400).json({ error: 'messages is required' });
   }
 
+  // Extract just the last user message
+  const lastMessage = messages.split('\n').filter(l => l.trim()).pop() || messages;
+
+  // Bake system prompt into message to avoid CLI arg escaping issues
+  const fullPrompt = systemPrompt
+    ? `You are: ${systemPrompt.replace(/\n/g, ' ')}\n\nUser message: ${lastMessage}`
+    : lastMessage;
+
+  const args = ['--print'];
+  if (model && model !== 'auto') args.push('--model', model);
+  args.push(fullPrompt);
+
+  console.log(`[chat] Agent request (model: ${model || 'auto'}, prompt: ${lastMessage.substring(0, 80)})`);
+
   try {
-    const args = ['--print'];
-    if (systemPrompt) args.push('--system-prompt', systemPrompt);
-    if (model && model !== 'auto') args.push('--model', model);
-    args.push(messages);
-
-    console.log(`[chat] Agent request (model: ${model || 'auto'}, prompt length: ${messages.length})`);
-
-    const { stdout, stderr } = await execFileAsync(CLAUDE_PATH, args, {
+    const response = execFileSync(CLAUDE_PATH, args, {
       timeout: 120000,
       maxBuffer: 1024 * 1024,
       windowsHide: true,
-    });
+      encoding: 'utf-8',
+      cwd: CLAUDE_CWD,
+    }).trim();
 
-    if (stderr) console.warn('[chat] stderr:', stderr);
-
-    const response = stdout.trim();
     console.log(`[chat] Response received (${response.length} chars)`);
     res.json({ response });
   } catch (err) {
-    console.error('[chat] Error:', err.message);
-
-    if (err.code === 'ENOENT') {
-      return res.status(500).json({
-        error: `Claude CLI not found at: ${CLAUDE_PATH}`,
-      });
-    }
-    if (err.killed || err.signal === 'SIGTERM') {
-      return res.status(504).json({ error: 'Request timed out.' });
-    }
-    res.status(500).json({ error: err.message || 'Unknown error' });
+    console.error('[chat] Error:', err.message?.substring(0, 200));
+    res.status(500).json({ error: err.stderr || err.message || 'Claude CLI error' });
   }
 });
 
