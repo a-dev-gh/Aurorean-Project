@@ -6,6 +6,7 @@ import ChatScreen from './components/screens/ChatScreen';
 import RosterScreen from './components/screens/RosterScreen';
 import SettingsScreen from './components/screens/SettingsScreen';
 import AgentEditor from './components/agent/AgentEditor';
+import Toast from './components/shared/Toast';
 import './styles/global.css';
 
 const App = () => {
@@ -55,6 +56,8 @@ const App = () => {
           onClose={() => setEditingAgent(null)}
         />
       )}
+
+      <Toast />
     </div>
   );
 };

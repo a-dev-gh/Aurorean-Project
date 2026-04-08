@@ -29,10 +29,54 @@ app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 
 // ═══════════════════════════════════════════════════
+// SECURITY — Rate limiting + input validation
+// ═══════════════════════════════════════════════════
+
+const rateLimitMap = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX = 20; // max requests per window
+
+function rateLimit(req, res, next) {
+  const ip = req.ip || 'local';
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip) || { count: 0, reset: now + RATE_LIMIT_WINDOW };
+
+  if (now > entry.reset) {
+    entry.count = 0;
+    entry.reset = now + RATE_LIMIT_WINDOW;
+  }
+
+  entry.count++;
+  rateLimitMap.set(ip, entry);
+
+  if (entry.count > RATE_LIMIT_MAX) {
+    return res.status(429).json({ error: 'Rate limit exceeded. Wait a minute.' });
+  }
+
+  next();
+}
+
+function validateInput(req, res, next) {
+  const { messages, systemPrompt } = req.body;
+
+  // Max message length
+  if (messages && messages.length > 50000) {
+    return res.status(400).json({ error: 'Message too long (max 50,000 chars)' });
+  }
+
+  // Max system prompt length
+  if (systemPrompt && systemPrompt.length > 10000) {
+    return res.status(400).json({ error: 'System prompt too long (max 10,000 chars)' });
+  }
+
+  next();
+}
+
+// ═══════════════════════════════════════════════════
 // CHAT — Send message to Claude agent
 // ═══════════════════════════════════════════════════
 
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', rateLimit, validateInput, async (req, res) => {
   const { systemPrompt, messages, model, projectFolder, enableTools, allowedTools } = req.body;
 
   if (!messages) {

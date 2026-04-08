@@ -16,6 +16,7 @@ async function saveChatToDisk(settings, rosterName, agentName, conversation) {
         conversation,
       }),
     });
+    useStore.getState().addToast('Chat saved to disk', 'success', 2000);
   } catch {
     // Silent fail — disk save is best-effort
   }
@@ -34,19 +35,25 @@ export function useChat() {
 
     setError(null);
 
+    // Security: limit message length
+    const sanitized = userText.trim().slice(0, 50000);
+
     // Add user message
-    addMessage(rosterId, agent.id, { role: 'user', content: userText.trim() });
+    addMessage(rosterId, agent.id, { role: 'user', content: sanitized });
 
     // Build messages array for the AI
     const messages = [
       ...existingMessages.map((m) => ({ role: m.role, content: m.content })),
-      { role: 'user', content: userText.trim() },
+      { role: 'user', content: sanitized },
     ];
 
     setLoading(true);
     try {
       const response = await sendMessage({ agent, messages, settings });
       addMessage(rosterId, agent.id, { role: 'assistant', content: response });
+
+      // Track usage
+      useStore.getState().trackUsage(response.length);
 
       // Auto-save to disk if enabled
       const roster = rosters.find((r) => r.id === rosterId);
@@ -61,6 +68,7 @@ export function useChat() {
         role: 'assistant',
         content: `Error: ${err.message}`,
       });
+      useStore.getState().addToast(`Agent error: ${err.message.slice(0, 80)}`, 'error');
     } finally {
       setLoading(false);
     }

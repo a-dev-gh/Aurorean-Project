@@ -36,6 +36,7 @@ const Header = () => {
   const setAiProvider = useStore((s) => s.setAiProvider);
   const setAiModel = useStore((s) => s.setAiModel);
   const activeAgentId = useStore((s) => s.activeAgentId);
+  const usage = useStore((s) => s.usage);
 
   const roster = rosters.find((r) => r.id === activeRosterId);
   const agent = roster?.agents.find((a) => a.id === activeAgentId) || null;
@@ -119,6 +120,13 @@ const Header = () => {
             <option key={r.id} value={r.id}>{r.name}</option>
           ))}
         </select>
+
+        {usage.totalMessages > 0 && (
+          <div className="usage-meter" title={`${usage.totalMessages} messages this session`}>
+            <span className="usage-dot" />
+            <span>{usage.totalMessages} msg</span>
+          </div>
+        )}
 
         <button
           className="btn-icon"

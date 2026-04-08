@@ -261,6 +261,96 @@ textarea {
 .text-sm { font-size: 12px; }
 .text-accent { color: var(--accent); }
 
+/* ── Toasts ── */
+
+.toast-container {
+  position: fixed;
+  top: 60px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  color: var(--text-primary);
+  pointer-events: auto;
+  animation: toast-in 0.25s ease-out;
+  max-width: 360px;
+}
+
+@keyframes toast-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.toast-icon {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.toast-success .toast-icon { color: var(--success); }
+.toast-error .toast-icon { color: var(--danger); }
+.toast-warning .toast-icon { color: var(--warning); }
+.toast-info .toast-icon { color: var(--accent); }
+
+.toast-message {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.toast-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.toast-close:hover {
+  color: var(--text-primary);
+}
+
+/* ── Usage Meter ── */
+
+.usage-meter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-muted);
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+}
+
+.usage-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: usage-pulse 2s ease-in-out infinite;
+}
+
+@keyframes usage-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
 /* ── Mobile ── */
 @media (max-width: 768px) {
   .sidebar {

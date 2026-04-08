@@ -8,6 +8,7 @@ const RosterScreen = () => {
   const deleteRoster = useStore((s) => s.deleteRoster);
   const setActiveRoster = useStore((s) => s.setActiveRoster);
   const updateRoster = useStore((s) => s.updateRoster);
+  const addToast = useStore((s) => s.addToast);
   const importRoster = useStore((s) => s.importRoster);
   const exportRoster = useStore((s) => s.exportRoster);
   const setActiveScreen = useStore((s) => s.setActiveScreen);
@@ -22,11 +23,17 @@ const RosterScreen = () => {
     const roster = addRoster(newName.trim());
     setNewName('');
     setActiveRoster(roster.id);
+    addToast(`Roster "${newName.trim()}" created`, 'success');
   };
 
   const handleDelete = (id) => {
-    if (rosters.length <= 1) return;
+    if (rosters.length <= 1) {
+      addToast('Cannot delete the last roster', 'warning');
+      return;
+    }
+    const name = rosters.find((r) => r.id === id)?.name;
     deleteRoster(id);
+    addToast(`Roster "${name}" deleted`, 'info');
   };
 
   const handleExport = (id) => {

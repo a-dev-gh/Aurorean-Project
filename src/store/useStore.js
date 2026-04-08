@@ -27,6 +27,16 @@ const useStore = create((set, get) => ({
     saveToDisk: false, // whether to save chat logs to disk
   },
 
+  // ── TOASTS ──
+  toasts: [],
+
+  // ── USAGE TRACKING ──
+  usage: {
+    totalTokens: 0,
+    totalMessages: 0,
+    sessionStart: new Date().toISOString(),
+  },
+
   // ── UI ──
   activeScreen: 'chat', // 'chat' | 'roster' | 'settings'
   sidebarOpen: true,
@@ -259,6 +269,37 @@ const useStore = create((set, get) => ({
 
   setActiveScreen: (screen) => set({ activeScreen: screen }),
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+
+  // ═══════════════════════════════════════════
+  // TOASTS
+  // ═══════════════════════════════════════════
+
+  addToast: (message, type = 'info', duration = 4000) => {
+    const toast = { id: Date.now(), message, type, duration };
+    set((s) => ({ toasts: [...s.toasts, toast] }));
+  },
+
+  removeToast: (id) => {
+    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
+  },
+
+  // ═══════════════════════════════════════════
+  // USAGE TRACKING
+  // ═══════════════════════════════════════════
+
+  trackUsage: (tokens = 0) => {
+    set((s) => ({
+      usage: {
+        ...s.usage,
+        totalTokens: s.usage.totalTokens + tokens,
+        totalMessages: s.usage.totalMessages + 1,
+      },
+    }));
+  },
+
+  resetUsage: () => {
+    set({ usage: { totalTokens: 0, totalMessages: 0, sessionStart: new Date().toISOString() } });
+  },
 
   // ═══════════════════════════════════════════
   // COMPUTED
