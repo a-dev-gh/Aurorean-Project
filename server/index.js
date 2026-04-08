@@ -85,9 +85,11 @@ app.post('/api/chat', rateLimit, validateInput, async (req, res) => {
   if (enableTools) {
     const toolList = (allowedTools || 'Bash Read Write Edit Glob Grep').split(/[,\s]+/).filter(Boolean);
     toolList.forEach(t => args.push('--allowedTools', t.trim()));
+    // Bypass CWD path restrictions so tools can access project files
+    args.push('--permission-mode', 'bypassPermissions');
   }
 
-  // Include project folder path in the prompt so Claude can use absolute paths
+  // Include project folder path in the prompt so Claude uses the right paths
   const projectContext = projectFolder
     ? `\n\nProject directory: ${projectFolder.replace(/\\/g, '/')} — use absolute paths when reading or writing files.`
     : '';
