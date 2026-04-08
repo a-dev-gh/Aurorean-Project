@@ -31,6 +31,8 @@ async function callClaudeCLI(agent, messages, model, settings) {
     messages: history,
     model: model === 'auto' ? agent.model : model,
     projectFolder: settings.projectFolder || undefined,
+    enableTools: agent.rules?.canWrite || agent.tools?.some(t => ['write', 'edit', 'bash'].includes(t)) || false,
+    allowedTools: agent.tools?.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(',') || undefined,
   };
 
   const res = await fetch('/api/chat', {

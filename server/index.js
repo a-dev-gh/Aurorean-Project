@@ -33,7 +33,7 @@ app.use(express.json({ limit: '5mb' }));
 // ═══════════════════════════════════════════════════
 
 app.post('/api/chat', async (req, res) => {
-  const { systemPrompt, messages, model, projectFolder } = req.body;
+  const { systemPrompt, messages, model, projectFolder, enableTools, allowedTools } = req.body;
 
   if (!messages) {
     return res.status(400).json({ error: 'messages is required' });
@@ -52,7 +52,15 @@ app.post('/api/chat', async (req, res) => {
 
   const args = ['--print'];
   if (model && model !== 'auto') args.push('--model', model);
-  args.push(fullPrompt);
+
+  // Enable tool use if the agent has permissions
+  if (enableTools) {
+    const tools = allowedTools || 'Bash,Read,Write,Edit,Glob,Grep';
+    args.push('--allowedTools', tools);
+  }
+
+  // Use -- separator to prevent prompt from being parsed as flags
+  args.push('--', fullPrompt);
 
   console.log(`[chat] Agent request (model: ${model || 'auto'}, prompt: ${lastMessage.substring(0, 80)})`);
 

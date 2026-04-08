@@ -127,6 +127,31 @@ const AgentEditor = ({ agentId, rosterId, onClose, isNew }) => {
           />
         </div>
 
+        <div className="agent-editor-field">
+          <label>Tools (Claude CLI)</label>
+          <div className="agent-tools-grid">
+            {['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'].map((tool) => (
+              <label key={tool} className="agent-tool-chip">
+                <input
+                  type="checkbox"
+                  checked={form.tools?.includes(tool.toLowerCase()) || false}
+                  onChange={(e) => {
+                    const toolLower = tool.toLowerCase();
+                    const current = form.tools || [];
+                    set('tools', e.target.checked
+                      ? [...current, toolLower]
+                      : current.filter((t) => t !== toolLower));
+                  }}
+                />
+                <span>{tool}</span>
+              </label>
+            ))}
+          </div>
+          <p className="text-muted text-sm" style={{ marginTop: 4 }}>
+            Agents with Write/Edit/Bash can modify files when using Claude CLI.
+          </p>
+        </div>
+
         <div className="flex gap-16">
           <div className="agent-editor-field">
             <label className="flex items-center gap-8">
