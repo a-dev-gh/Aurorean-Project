@@ -122,9 +122,12 @@ const Header = () => {
         </select>
 
         {usage.totalMessages > 0 && (
-          <div className="usage-meter" title={`${usage.totalMessages} messages this session`}>
+          <div className="usage-meter" title={`${usage.totalMessages} messages, ${usage.totalTokens.toLocaleString()} tokens this session`}>
             <span className="usage-dot" />
-            <span>{usage.totalMessages} msg</span>
+            <span>
+              {usage.totalMessages} msg
+              {usage.totalTokens > 0 && ` | ${(usage.totalTokens / 1000).toFixed(1)}k`}
+            </span>
           </div>
         )}
 

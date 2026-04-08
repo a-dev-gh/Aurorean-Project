@@ -20,19 +20,24 @@ function getMockResponse(agent, messages) {
   return `*${agent.name} responding*\n\n${base}`;
 }
 
-async function callClaudeCLI(agent, messages, model, settings) {
+async function callClaudeCLI(agent, messages, model, settings, rosterId) {
   // Build conversation context
   const history = messages
     .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
     .join('\n\n');
+
+  // Determine which tools this agent can use
+  const hasTools = agent.rules?.canWrite || agent.tools?.some(t => ['write', 'edit', 'bash'].includes(t));
+  const toolList = agent.tools?.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(' ') || undefined;
 
   const body = {
     systemPrompt: agent.systemPrompt,
     messages: history,
     model: model === 'auto' ? agent.model : model,
     projectFolder: settings.projectFolder || undefined,
-    enableTools: agent.rules?.canWrite || agent.tools?.some(t => ['write', 'edit', 'bash'].includes(t)) || false,
-    allowedTools: agent.tools?.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join(',') || undefined,
+    enableTools: hasTools || false,
+    allowedTools: toolList,
+    sessionKey: rosterId && agent.id ? `${rosterId}_${agent.id}` : undefined,
   };
 
   const res = await fetch('/api/chat', {
@@ -47,7 +52,13 @@ async function callClaudeCLI(agent, messages, model, settings) {
   }
 
   const data = await res.json();
-  return data.response;
+
+  // Return response + usage for token tracking
+  return {
+    text: data.response,
+    usage: data.usage || null,
+    sessionId: data.sessionId || null,
+  };
 }
 
 async function callGemini(agent, messages, model, apiKey) {
@@ -81,26 +92,26 @@ async function callGemini(agent, messages, model, apiKey) {
 
 /**
  * Send a message to an agent and get a response.
- * @param {Object} params
- * @param {Object} params.agent - The agent definition
- * @param {Array} params.messages - Conversation history [{role, content}]
- * @param {Object} params.settings - App settings (aiProvider, aiModel, apiKeys)
- * @returns {Promise<string>} The agent's response text
+ * Returns { text, usage } — usage may be null for non-Claude providers.
  */
-export async function sendMessage({ agent, messages, settings }) {
+export async function sendMessage({ agent, messages, settings, rosterId }) {
   const { aiProvider, aiModel, apiKeys } = settings;
 
   switch (aiProvider) {
-    case 'claude-cli':
-      return callClaudeCLI(agent, messages, aiModel, settings);
+    case 'claude-cli': {
+      // Claude CLI returns { text, usage, sessionId }
+      return callClaudeCLI(agent, messages, aiModel, settings, rosterId);
+    }
 
-    case 'gemini':
-      return callGemini(agent, messages, aiModel, apiKeys?.gemini);
+    case 'gemini': {
+      const text = await callGemini(agent, messages, aiModel, apiKeys?.gemini);
+      return { text, usage: null };
+    }
 
     case 'mock':
-    default:
-      // Simulate a small delay for realism
+    default: {
       await new Promise((r) => setTimeout(r, 800 + Math.random() * 700));
-      return getMockResponse(agent, messages);
+      return { text: getMockResponse(agent, messages), usage: null };
+    }
   }
 }

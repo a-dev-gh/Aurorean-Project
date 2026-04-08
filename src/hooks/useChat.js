@@ -49,17 +49,21 @@ export function useChat() {
 
     setLoading(true);
     try {
-      const response = await sendMessage({ agent, messages, settings });
-      addMessage(rosterId, agent.id, { role: 'assistant', content: response });
+      const result = await sendMessage({ agent, messages, settings, rosterId });
+      const responseText = result.text || result;
+      addMessage(rosterId, agent.id, { role: 'assistant', content: responseText });
 
-      // Track usage
-      useStore.getState().trackUsage(response.length);
+      // Track usage with real token counts if available
+      const tokens = result.usage
+        ? (result.usage.inputTokens || 0) + (result.usage.outputTokens || 0)
+        : responseText.length;
+      useStore.getState().trackUsage(tokens);
 
       // Auto-save to disk if enabled
       const roster = rosters.find((r) => r.id === rosterId);
       const fullConversation = [
         ...messages,
-        { role: 'assistant', content: response },
+        { role: 'assistant', content: responseText },
       ];
       saveChatToDisk(settings, roster?.name, agent.name, fullConversation);
     } catch (err) {
