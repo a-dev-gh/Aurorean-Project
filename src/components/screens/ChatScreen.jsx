@@ -64,6 +64,26 @@ const ChatScreen = () => {
 
   const handleSend = () => {
     if (!input.trim() || !agent || loading) return;
+
+    // Check for @mention to route to a different agent
+    const mentionMatch = input.match(/^@(\S+)\s/);
+    if (mentionMatch && roster) {
+      const mentionName = mentionMatch[1].toLowerCase();
+      const targetAgent = roster.agents.find(
+        (a) => a.name.toLowerCase().replace(/\s+/g, '-') === mentionName ||
+               a.name.toLowerCase() === mentionName
+      );
+      if (targetAgent) {
+        const messageWithoutMention = input.replace(/^@\S+\s/, '').trim();
+        if (messageWithoutMention) {
+          send(activeRosterId, targetAgent, [], messageWithoutMention);
+          useStore.getState().setActiveAgent(targetAgent.id);
+        }
+        setInput('');
+        return;
+      }
+    }
+
     send(activeRosterId, agent, messages, input);
     setInput('');
   };
