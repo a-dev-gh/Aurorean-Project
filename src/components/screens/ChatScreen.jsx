@@ -199,8 +199,33 @@ const ChatScreen = () => {
             </div>
             <h2>{agent.name}</h2>
             <p className="text-secondary">{agent.description}</p>
+
+            {/* Agent capabilities */}
+            <div className="chat-welcome-meta">
+              <div className="chat-welcome-badges">
+                <span className="chat-welcome-badge" style={{ borderColor: agent.color + '40', color: agent.color }}>
+                  {agent.model || 'auto'}
+                </span>
+                {agent.rules?.requiresApproval && (
+                  <span className="chat-welcome-badge badge-warning">needs approval</span>
+                )}
+                {agent.rules?.canWrite && (
+                  <span className="chat-welcome-badge badge-success">can write files</span>
+                )}
+              </div>
+
+              {agent.tools && agent.tools.length > 0 && (
+                <div className="chat-welcome-tools">
+                  <span className="text-muted text-sm">Tools:</span>
+                  {agent.tools.map((t) => (
+                    <span key={t} className="chat-tool-pill">{t}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="chat-welcome-prompt">
-              <p className="text-muted text-sm">System prompt preview:</p>
+              <p className="text-muted text-sm">System prompt:</p>
               <pre className="chat-system-prompt">{agent.systemPrompt}</pre>
             </div>
           </div>
